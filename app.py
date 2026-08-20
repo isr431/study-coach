@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import sqlite3
 
 from dotenv import load_dotenv
@@ -116,7 +117,11 @@ def request_topic_plan(course_name, syllabus_text):
         return None, error
 
     try:
-        topics = json.loads(content)
+        topics = json.loads(re.sub(r"^\s*```[^\n]*\n|\n\s*```\s*$", "", content))
+        if isinstance(topics, dict):
+            topics = next(
+                (value for value in topics.values() if isinstance(value, list)), None
+            )
         if not isinstance(topics, list) or not topics:
             raise ValueError
 
