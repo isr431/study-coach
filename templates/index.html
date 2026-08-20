@@ -47,14 +47,22 @@
         }
 
         input,
+        select,
+        textarea,
         button {
             width: 100%;
             padding: 10px;
             font: inherit;
         }
 
-        input {
+        input,
+        select,
+        textarea {
             border: 1px solid #aaa;
+        }
+
+        textarea {
+            resize: vertical;
         }
 
         .topic-checkbox {
@@ -97,12 +105,20 @@
         #topic-list p {
             margin: 4px 0 0;
         }
+
+        #coach-answer {
+            margin-bottom: 0;
+            padding: 12px;
+            border: 1px solid #ddd;
+            white-space: pre-wrap;
+        }
     </style>
 </head>
 <body>
     <main>
         <h1>Study Coach</h1>
         <p>Turn your course material into an ordered study plan.</p>
+        <p id="error" class="error" role="alert" hidden></p>
 
         <section>
             <h2>Course setup</h2>
@@ -121,26 +137,49 @@
 
                 <button type="submit">Generate study plan</button>
             </form>
-            <p id="setup-error" class="error" role="alert" hidden></p>
         </section>
 
         <section id="study-plan" hidden>
             <h2 id="course-title">Study plan</h2>
             <p id="progress" aria-live="polite"></p>
-            <p id="plan-error" class="error" role="alert" hidden></p>
             <ol id="topic-list"></ol>
+        </section>
+
+        <section id="topic-coach" hidden>
+            <h2>Topic coach</h2>
+            <form id="coach-form">
+                <label for="coach-topic">Topic</label>
+                <select id="coach-topic" required></select>
+
+                <label for="coach-question">Question</label>
+                <textarea id="coach-question" rows="3" required></textarea>
+
+                <button type="submit">Ask</button>
+            </form>
+            <p id="coach-answer" aria-live="polite" hidden></p>
         </section>
     </main>
 
     <script>
         const form = document.querySelector("#course-form");
-        const errorMessage = document.querySelector("#setup-error");
+        const errorMessage = document.querySelector("#error");
         const studyPlan = document.querySelector("#study-plan");
         const courseTitle = document.querySelector("#course-title");
         const progressText = document.querySelector("#progress");
-        const planError = document.querySelector("#plan-error");
         const topicList = document.querySelector("#topic-list");
         const submitButton = form.querySelector("button");
+        const topicCoach = document.querySelector("#topic-coach");
+        const coachForm = document.querySelector("#coach-form");
+        const coachTopic = document.querySelector("#coach-topic");
+        const coachQuestion = document.querySelector("#coach-question");
+        const coachAnswer = document.querySelector("#coach-answer");
+        const coachButton = coachForm.querySelector("button");
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.hidden = false;
+            errorMessage.scrollIntoView();
+        }
 
         function updateProgress(progress) {
             progressText.textContent =
@@ -152,7 +191,7 @@
             courseTitle.textContent = `${data.course.name} study plan`;
             updateProgress(data.progress);
             topicList.replaceChildren();
-            planError.hidden = true;
+            coachTopic.replaceChildren();
 
             for (const topic of data.topics) {
                 const item = document.createElement("li");
@@ -171,7 +210,7 @@
                 checkbox.addEventListener("change", async () => {
                     const completed = checkbox.checked;
                     checkbox.disabled = true;
-                    planError.hidden = true;
+                    errorMessage.hidden = true;
 
                     try {
                         const response = await fetch(`/api/topics/${topic.id}`, {
@@ -188,8 +227,7 @@
                         updateProgress(result.progress);
                     } catch (error) {
                         checkbox.checked = !completed;
-                        planError.textContent = error.message;
-                        planError.hidden = false;
+                        showError(error.message);
                     } finally {
                         checkbox.disabled = false;
                     }
@@ -198,9 +236,15 @@
                 title.append(checkbox, titleText);
                 item.append(title, summary);
                 topicList.append(item);
+
+                const option = document.createElement("option");
+                option.value = topic.id;
+                option.textContent = topic.title;
+                coachTopic.append(option);
             }
 
             studyPlan.hidden = false;
+            topicCoach.hidden = false;
         }
 
         async function loadState() {
@@ -216,8 +260,7 @@
                     renderState(data);
                 }
             } catch {
-                errorMessage.textContent = "The saved course could not be loaded";
-                errorMessage.hidden = false;
+                showError("The saved course could not be loaded");
             }
         }
 
@@ -240,11 +283,42 @@
 
                 renderState(data);
             } catch (error) {
-                errorMessage.textContent = error.message;
-                errorMessage.hidden = false;
+                showError(error.message);
             } finally {
                 submitButton.disabled = false;
                 submitButton.textContent = "Generate study plan";
+            }
+        });
+
+        coachForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            errorMessage.hidden = true;
+            coachAnswer.hidden = true;
+            coachButton.disabled = true;
+            coachButton.textContent = "Asking...";
+
+            try {
+                const response = await fetch("/api/chat", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({
+                        topic_id: Number(coachTopic.value),
+                        question: coachQuestion.value
+                    })
+                });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "The explanation could not be generated");
+                }
+
+                coachAnswer.textContent = data.answer;
+                coachAnswer.hidden = false;
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                coachButton.disabled = false;
+                coachButton.textContent = "Ask";
             }
         });
 

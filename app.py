@@ -1,6 +1,5 @@
 import json
 import os
-from pathlib import Path
 import sqlite3
 
 from dotenv import load_dotenv
@@ -10,7 +9,7 @@ import requests
 
 load_dotenv()
 app = Flask(__name__)
-DATABASE = Path(__file__).with_name("study_coach.db")
+DATABASE = "study_coach.db"
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "google/gemini-3.7-flash"
 
@@ -18,7 +17,6 @@ MODEL = "google/gemini-3.7-flash"
 def get_connection():
     connection = sqlite3.connect(DATABASE)
     connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA foreign_keys = ON")
     return connection
 
 
@@ -38,37 +36,19 @@ def init_db():
             title TEXT NOT NULL,
             summary TEXT NOT NULL,
             order_index INTEGER NOT NULL,
-            completed INTEGER NOT NULL DEFAULT 0 CHECK (completed IN (0, 1)),
-            FOREIGN KEY (course_id) REFERENCES course (id) ON DELETE CASCADE
+            completed INTEGER NOT NULL DEFAULT 0
         );
         """
     )
     connection.close()
 
 
-def request_topic_plan(course_name, syllabus_text):
+def request_completion(messages):
     api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if not api_key:
         return None, "The OpenRouter API key is not configured"
 
-    payload = {
-        "model": MODEL,
-        "messages": [
-            {
-                "role": "system",
-                "content": (
-                    "Create an ordered study plan from the supplied course material. "
-                    "Return only a JSON array. Each item must contain a non-empty "
-                    '"title" and a short non-empty "summary".'
-                ),
-            },
-            {
-                "role": "user",
-                "content": f"Course: {course_name}\n\nCourse material:\n{syllabus_text}",
-            },
-        ],
-        "temperature": 0.2,
-    }
+    payload = {"model": MODEL, "messages": messages, "temperature": 0.2}
 
     try:
         response = requests.post(
@@ -81,68 +61,98 @@ def request_topic_plan(course_name, syllabus_text):
             raise ValueError
 
         content = response.json()["choices"][0]["message"]["content"]
-        topics = json.loads(content)
+    except (requests.RequestException, ValueError, KeyError, IndexError, TypeError):
+        return None, "The OpenRouter request failed"
 
+    return content, None
+
+
+def request_topic_plan(course_name, syllabus_text):
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "Create an ordered study plan from the supplied course material. "
+                "Return only a JSON array. Each item must contain a non-empty "
+                '"title" and a short non-empty "summary".'
+            ),
+        },
+        {
+            "role": "user",
+            "content": f"Course: {course_name}\n\nCourse material:\n{syllabus_text}",
+        },
+    ]
+
+    content, error = request_completion(messages)
+    if error:
+        return None, error
+
+    try:
+        topics = json.loads(content)
         if not isinstance(topics, list) or not topics:
             raise ValueError
 
-        validated_topics = []
-        for topic in topics:
-            if not isinstance(topic, dict):
-                raise ValueError
-
-            title = topic.get("title")
-            summary = topic.get("summary")
-            if not isinstance(title, str) or not isinstance(summary, str):
-                raise ValueError
-
-            title = title.strip()
-            summary = summary.strip()
-            if not title or not summary:
-                raise ValueError
-
-            validated_topics.append({"title": title, "summary": summary})
-    except (requests.RequestException, ValueError, KeyError, IndexError, TypeError):
+        validated_topics = [
+            {"title": topic["title"].strip(), "summary": topic["summary"].strip()}
+            for topic in topics
+        ]
+        if not all(topic["title"] and topic["summary"] for topic in validated_topics):
+            raise ValueError
+    except (AttributeError, KeyError, TypeError, ValueError):
         return None, "The study plan could not be generated"
 
     return validated_topics, None
 
 
+def request_explanation(topic_row, question):
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a study coach. Answer the student's question about the "
+                "selected topic, stay relevant to the supplied course material and "
+                "explain the answer clearly."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Course: {topic_row['name']}\n"
+                f"Topic: {topic_row['title']}\n"
+                f"Topic summary: {topic_row['summary']}\n\n"
+                f"Course material:\n{topic_row['syllabus_text']}\n\n"
+                f"Question: {question}"
+            ),
+        },
+    ]
+
+    answer, error = request_completion(messages)
+    if error:
+        return None, error
+
+    return answer.strip(), None
+
+
 def save_course_and_topics(course_name, syllabus_text, topics):
     connection = get_connection()
-    saved_topics = []
+    with connection:
+        connection.execute("DELETE FROM topic")
+        connection.execute("DELETE FROM course")
+        cursor = connection.execute(
+            "INSERT INTO course (name, syllabus_text) VALUES (?, ?)",
+            (course_name, syllabus_text),
+        )
+        course_id = cursor.lastrowid
 
-    try:
-        with connection:
-            connection.execute("DELETE FROM topic")
-            connection.execute("DELETE FROM course")
-            cursor = connection.execute(
-                "INSERT INTO course (name, syllabus_text) VALUES (?, ?)",
-                (course_name, syllabus_text),
+        for order_index, topic in enumerate(topics, start=1):
+            connection.execute(
+                """
+                INSERT INTO topic (course_id, title, summary, order_index)
+                VALUES (?, ?, ?, ?)
+                """,
+                (course_id, topic["title"], topic["summary"], order_index),
             )
-            course_id = cursor.lastrowid
-
-            for order_index, topic in enumerate(topics, start=1):
-                cursor = connection.execute(
-                    """
-                    INSERT INTO topic (course_id, title, summary, order_index)
-                    VALUES (?, ?, ?, ?)
-                    """,
-                    (course_id, topic["title"], topic["summary"], order_index),
-                )
-                saved_topics.append(
-                    {
-                        "id": cursor.lastrowid,
-                        "title": topic["title"],
-                        "summary": topic["summary"],
-                        "order_index": order_index,
-                        "completed": False,
-                    }
-                )
-    finally:
-        connection.close()
-
-    return {"id": course_id, "name": course_name}, saved_topics
+    connection.close()
 
 
 def get_progress(connection):
@@ -156,6 +166,28 @@ def get_progress(connection):
     completed = counts["completed"]
     percentage = round(completed / total * 100) if total else 0
     return {"completed": completed, "total": total, "percentage": percentage}
+
+
+def read_state():
+    connection = get_connection()
+    course_row = connection.execute("SELECT name FROM course LIMIT 1").fetchone()
+    topic_rows = connection.execute(
+        "SELECT id, title, summary, completed FROM topic ORDER BY order_index"
+    ).fetchall()
+    progress = get_progress(connection)
+    connection.close()
+
+    topics = [
+        {
+            "id": row["id"],
+            "title": row["title"],
+            "summary": row["summary"],
+            "completed": bool(row["completed"]),
+        }
+        for row in topic_rows
+    ]
+    course = {"name": course_row["name"]} if course_row else None
+    return {"course": course, "topics": topics, "progress": progress}
 
 
 @app.route("/")
@@ -188,56 +220,13 @@ def setup_course():
     if error:
         return jsonify(error=error), 500
 
-    try:
-        course, saved_topics = save_course_and_topics(
-            course_name, syllabus_text, topics
-        )
-    except sqlite3.Error:
-        return jsonify(error="The course and study plan could not be saved"), 500
-
-    progress = {"completed": 0, "total": len(saved_topics), "percentage": 0}
-    return jsonify(course=course, topics=saved_topics, progress=progress), 201
+    save_course_and_topics(course_name, syllabus_text, topics)
+    return jsonify(read_state()), 201
 
 
 @app.get("/api/state")
 def get_state():
-    connection = get_connection()
-    course_row = connection.execute(
-        "SELECT id, name FROM course LIMIT 1"
-    ).fetchone()
-
-    if not course_row:
-        connection.close()
-        return jsonify(
-            course=None,
-            topics=[],
-            progress={"completed": 0, "total": 0, "percentage": 0},
-        )
-
-    topic_rows = connection.execute(
-        """
-        SELECT id, title, summary, order_index, completed
-        FROM topic
-        WHERE course_id = ?
-        ORDER BY order_index
-        """,
-        (course_row["id"],),
-    ).fetchall()
-    progress = get_progress(connection)
-    connection.close()
-
-    topics = [
-        {
-            "id": row["id"],
-            "title": row["title"],
-            "summary": row["summary"],
-            "order_index": row["order_index"],
-            "completed": bool(row["completed"]),
-        }
-        for row in topic_rows
-    ]
-    course = {"id": course_row["id"], "name": course_row["name"]}
-    return jsonify(course=course, topics=topics, progress=progress)
+    return jsonify(read_state())
 
 
 @app.patch("/api/topics/<int:topic_id>")
@@ -247,24 +236,45 @@ def update_topic(topic_id):
         return jsonify(error="A completion status is required"), 400
 
     connection = get_connection()
-    try:
-        with connection:
-            cursor = connection.execute(
-                "UPDATE topic SET completed = ? WHERE id = ?",
-                (int(data["completed"]), topic_id),
-            )
+    with connection:
+        connection.execute(
+            "UPDATE topic SET completed = ? WHERE id = ?",
+            (int(data["completed"]), topic_id),
+        )
+    progress = get_progress(connection)
+    connection.close()
 
-        if cursor.rowcount == 0:
-            return jsonify(error="Topic not found"), 404
+    return jsonify(progress=progress)
 
-        progress = get_progress(connection)
-    finally:
-        connection.close()
 
-    return jsonify(
-        topic={"id": topic_id, "completed": data["completed"]},
-        progress=progress,
-    )
+@app.post("/api/chat")
+def explain_topic():
+    data = request.get_json(silent=True) or {}
+    question = data.get("question")
+
+    if not isinstance(question, str) or not question.strip():
+        return jsonify(error="A question is required"), 400
+
+    connection = get_connection()
+    topic_row = connection.execute(
+        """
+        SELECT topic.title, topic.summary, course.name, course.syllabus_text
+        FROM topic
+        JOIN course ON course.id = topic.course_id
+        WHERE topic.id = ?
+        """,
+        (data.get("topic_id"),),
+    ).fetchone()
+    connection.close()
+
+    if not topic_row:
+        return jsonify(error="Topic not found"), 404
+
+    answer, error = request_explanation(topic_row, question.strip())
+    if error:
+        return jsonify(error=error), 500
+
+    return jsonify(answer=answer)
 
 
 init_db()
