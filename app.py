@@ -17,6 +17,7 @@ MODEL = "google/gemini-3.7-flash"
 
 def get_connection():
     connection = sqlite3.connect(DATABASE)
+    connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
     return connection
 
@@ -144,6 +145,19 @@ def save_course_and_topics(course_name, syllabus_text, topics):
     return {"id": course_id, "name": course_name}, saved_topics
 
 
+def get_progress(connection):
+    counts = connection.execute(
+        """
+        SELECT COUNT(*) AS total, COALESCE(SUM(completed), 0) AS completed
+        FROM topic
+        """
+    ).fetchone()
+    total = counts["total"]
+    completed = counts["completed"]
+    percentage = round(completed / total * 100) if total else 0
+    return {"completed": completed, "total": total, "percentage": percentage}
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -181,7 +195,76 @@ def setup_course():
     except sqlite3.Error:
         return jsonify(error="The course and study plan could not be saved"), 500
 
-    return jsonify(course=course, topics=saved_topics), 201
+    progress = {"completed": 0, "total": len(saved_topics), "percentage": 0}
+    return jsonify(course=course, topics=saved_topics, progress=progress), 201
+
+
+@app.get("/api/state")
+def get_state():
+    connection = get_connection()
+    course_row = connection.execute(
+        "SELECT id, name FROM course LIMIT 1"
+    ).fetchone()
+
+    if not course_row:
+        connection.close()
+        return jsonify(
+            course=None,
+            topics=[],
+            progress={"completed": 0, "total": 0, "percentage": 0},
+        )
+
+    topic_rows = connection.execute(
+        """
+        SELECT id, title, summary, order_index, completed
+        FROM topic
+        WHERE course_id = ?
+        ORDER BY order_index
+        """,
+        (course_row["id"],),
+    ).fetchall()
+    progress = get_progress(connection)
+    connection.close()
+
+    topics = [
+        {
+            "id": row["id"],
+            "title": row["title"],
+            "summary": row["summary"],
+            "order_index": row["order_index"],
+            "completed": bool(row["completed"]),
+        }
+        for row in topic_rows
+    ]
+    course = {"id": course_row["id"], "name": course_row["name"]}
+    return jsonify(course=course, topics=topics, progress=progress)
+
+
+@app.patch("/api/topics/<int:topic_id>")
+def update_topic(topic_id):
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data.get("completed"), bool):
+        return jsonify(error="A completion status is required"), 400
+
+    connection = get_connection()
+    try:
+        with connection:
+            cursor = connection.execute(
+                "UPDATE topic SET completed = ? WHERE id = ?",
+                (int(data["completed"]), topic_id),
+            )
+
+        if cursor.rowcount == 0:
+            return jsonify(error="Topic not found"), 404
+
+        progress = get_progress(connection)
+    finally:
+        connection.close()
+
+    return jsonify(
+        topic={"id": topic_id, "completed": data["completed"]},
+        progress=progress,
+    )
 
 
 init_db()

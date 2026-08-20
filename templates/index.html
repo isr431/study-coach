@@ -57,6 +57,12 @@
             border: 1px solid #aaa;
         }
 
+        .topic-checkbox {
+            width: auto;
+            margin: 0 8px 0 0;
+            padding: 0;
+        }
+
         button {
             color: white;
             background: #222;
@@ -82,8 +88,10 @@
             padding: 8px 0;
         }
 
-        #topic-list h3 {
-            margin: 0;
+        .topic-title {
+            display: flex;
+            align-items: center;
+            font-weight: 600;
         }
 
         #topic-list p {
@@ -118,6 +126,8 @@
 
         <section id="study-plan" hidden>
             <h2 id="course-title">Study plan</h2>
+            <p id="progress" aria-live="polite"></p>
+            <p id="plan-error" class="error" role="alert" hidden></p>
             <ol id="topic-list"></ol>
         </section>
     </main>
@@ -127,8 +137,89 @@
         const errorMessage = document.querySelector("#setup-error");
         const studyPlan = document.querySelector("#study-plan");
         const courseTitle = document.querySelector("#course-title");
+        const progressText = document.querySelector("#progress");
+        const planError = document.querySelector("#plan-error");
         const topicList = document.querySelector("#topic-list");
         const submitButton = form.querySelector("button");
+
+        function updateProgress(progress) {
+            progressText.textContent =
+                `${progress.completed} of ${progress.total} topics complete ` +
+                `(${progress.percentage}%)`;
+        }
+
+        function renderState(data) {
+            courseTitle.textContent = `${data.course.name} study plan`;
+            updateProgress(data.progress);
+            topicList.replaceChildren();
+            planError.hidden = true;
+
+            for (const topic of data.topics) {
+                const item = document.createElement("li");
+                const title = document.createElement("label");
+                const checkbox = document.createElement("input");
+                const titleText = document.createElement("span");
+                const summary = document.createElement("p");
+
+                title.className = "topic-title";
+                checkbox.className = "topic-checkbox";
+                checkbox.type = "checkbox";
+                checkbox.checked = topic.completed;
+                titleText.textContent = topic.title;
+                summary.textContent = topic.summary;
+
+                checkbox.addEventListener("change", async () => {
+                    const completed = checkbox.checked;
+                    checkbox.disabled = true;
+                    planError.hidden = true;
+
+                    try {
+                        const response = await fetch(`/api/topics/${topic.id}`, {
+                            method: "PATCH",
+                            headers: {"Content-Type": "application/json"},
+                            body: JSON.stringify({completed})
+                        });
+                        const result = await response.json();
+
+                        if (!response.ok) {
+                            throw new Error(result.error || "Progress could not be saved");
+                        }
+
+                        updateProgress(result.progress);
+                    } catch (error) {
+                        checkbox.checked = !completed;
+                        planError.textContent = error.message;
+                        planError.hidden = false;
+                    } finally {
+                        checkbox.disabled = false;
+                    }
+                });
+
+                title.append(checkbox, titleText);
+                item.append(title, summary);
+                topicList.append(item);
+            }
+
+            studyPlan.hidden = false;
+        }
+
+        async function loadState() {
+            try {
+                const response = await fetch("/api/state");
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error;
+                }
+
+                if (data.course) {
+                    renderState(data);
+                }
+            } catch {
+                errorMessage.textContent = "The saved course could not be loaded";
+                errorMessage.hidden = false;
+            }
+        }
 
         form.addEventListener("submit", async (event) => {
             event.preventDefault();
@@ -147,21 +238,7 @@
                     throw new Error(data.error || "The study plan could not be generated");
                 }
 
-                courseTitle.textContent = `${data.course.name} study plan`;
-                topicList.replaceChildren();
-
-                for (const topic of data.topics) {
-                    const item = document.createElement("li");
-                    const title = document.createElement("h3");
-                    const summary = document.createElement("p");
-
-                    title.textContent = topic.title;
-                    summary.textContent = topic.summary;
-                    item.append(title, summary);
-                    topicList.append(item);
-                }
-
-                studyPlan.hidden = false;
+                renderState(data);
             } catch (error) {
                 errorMessage.textContent = error.message;
                 errorMessage.hidden = false;
@@ -170,6 +247,8 @@
                 submitButton.textContent = "Generate study plan";
             }
         });
+
+        loadState();
     </script>
 </body>
 </html>
