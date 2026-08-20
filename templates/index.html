@@ -611,10 +611,94 @@
         }
 
         .answer-body {
-            margin: 0;
             padding-top: 16px;
             border-top: 1px solid var(--border);
-            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .answer-body > *:first-child {
+            margin-top: 0;
+        }
+
+        .answer-body > *:last-child {
+            margin-bottom: 0;
+        }
+
+        .answer-body p {
+            margin: 0 0 12px;
+        }
+
+        .answer-body h1,
+        .answer-body h2,
+        .answer-body h3,
+        .answer-body h4 {
+            margin: 18px 0 8px;
+            line-height: 1.3;
+            letter-spacing: -0.01em;
+        }
+
+        .answer-body h1 {
+            font-size: 18px;
+        }
+
+        .answer-body h2 {
+            font-size: 16px;
+        }
+
+        .answer-body h3,
+        .answer-body h4 {
+            font-size: 15px;
+        }
+
+        .answer-body ul,
+        .answer-body ol {
+            margin: 0 0 12px;
+            padding-left: 22px;
+        }
+
+        .answer-body li {
+            margin-bottom: 4px;
+        }
+
+        .answer-body blockquote {
+            margin: 0 0 12px;
+            padding-left: 12px;
+            border-left: 3px solid var(--border-strong);
+            color: var(--muted);
+        }
+
+        .answer-body code {
+            padding: 1px 5px;
+            border-radius: 4px;
+            background: var(--surface-sunken);
+            border: 1px solid var(--border);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 13px;
+        }
+
+        .answer-body pre {
+            margin: 0 0 12px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface-sunken);
+            overflow-x: auto;
+        }
+
+        .answer-body pre code {
+            padding: 0;
+            border: 0;
+            background: none;
+        }
+
+        .answer-body hr {
+            margin: 16px 0;
+            border: 0;
+            border-top: 1px solid var(--border);
+        }
+
+        .answer-body a {
+            color: var(--accent-strong);
         }
 
         @keyframes rise {
@@ -795,7 +879,7 @@
             <div class="card" id="coach-answer" hidden>
                 <p class="answer-topic" id="answer-topic"></p>
                 <p class="answer-question" id="answer-question"></p>
-                <p class="answer-body" id="answer-body"></p>
+                <div class="answer-body" id="answer-body"></div>
             </div>
 
             <div class="empty" id="coach-empty">
@@ -918,6 +1002,114 @@
 
         for (const button of document.querySelectorAll("[data-open-tab]")) {
             button.addEventListener("click", () => openTab(button.dataset.openTab));
+        }
+
+        function escapeHtml(text) {
+            const replacements = {
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;"
+            };
+            return text.replace(/[&<>"']/g, (character) => replacements[character]);
+        }
+
+        function renderInline(text) {
+            return escapeHtml(text)
+                .replace(/`([^`]+)`/g, "<code>$1</code>")
+                .replace(
+                    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+                    '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+                )
+                .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+                .replace(/(^|[^*\w])\*([^\s*][^*\n]*?|[^\s*])\*/g, "$1<em>$2</em>")
+                .replace(/(^|[^_\w])_([^\s_][^_\n]*?|[^\s_])_/g, "$1<em>$2</em>");
+        }
+
+        function renderMarkdown(text) {
+            const lines = text.replace(/\r\n/g, "\n").split("\n");
+            const html = [];
+
+            let open = null;
+            let buffer = [];
+
+            function closeBlock() {
+                if (open === "p") {
+                    html.push(`<p>${buffer.map(renderInline).join("<br>")}</p>`);
+                } else if (open === "ul" || open === "ol") {
+                    const items = buffer.map((item) => `<li>${renderInline(item)}</li>`);
+                    html.push(`<${open}>${items.join("")}</${open}>`);
+                } else if (open === "blockquote") {
+                    html.push(`<blockquote>${buffer.map(renderInline).join("<br>")}</blockquote>`);
+                } else if (open === "pre") {
+                    html.push(`<pre><code>${escapeHtml(buffer.join("\n"))}</code></pre>`);
+                }
+                open = null;
+                buffer = [];
+            }
+
+            for (const line of lines) {
+                if (/^\s*```/.test(line)) {
+                    const wasCode = open === "pre";
+                    closeBlock();
+                    if (!wasCode) {
+                        open = "pre";
+                    }
+                    continue;
+                }
+
+                if (open === "pre") {
+                    buffer.push(line);
+                    continue;
+                }
+
+                if (!line.trim()) {
+                    closeBlock();
+                    continue;
+                }
+
+                const heading = line.match(/^(#{1,6})\s+(.*)$/);
+                const bullet = line.match(/^\s*[-*+]\s+(.*)$/);
+                const numbered = line.match(/^\s*\d+[.)]\s+(.*)$/);
+                const quote = line.match(/^\s*>\s?(.*)$/);
+
+                if (heading) {
+                    closeBlock();
+                    const level = Math.min(heading[1].length + 1, 6);
+                    html.push(`<h${level}>${renderInline(heading[2])}</h${level}>`);
+                } else if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(line)) {
+                    closeBlock();
+                    html.push("<hr>");
+                } else if (bullet) {
+                    if (open !== "ul") {
+                        closeBlock();
+                        open = "ul";
+                    }
+                    buffer.push(bullet[1]);
+                } else if (numbered) {
+                    if (open !== "ol") {
+                        closeBlock();
+                        open = "ol";
+                    }
+                    buffer.push(numbered[1]);
+                } else if (quote) {
+                    if (open !== "blockquote") {
+                        closeBlock();
+                        open = "blockquote";
+                    }
+                    buffer.push(quote[1]);
+                } else {
+                    if (open !== "p") {
+                        closeBlock();
+                        open = "p";
+                    }
+                    buffer.push(line.trim());
+                }
+            }
+
+            closeBlock();
+            return html.join("");
         }
 
         function showError(message) {
@@ -1198,7 +1390,7 @@
 
                 answerTopic.textContent = topicTitle;
                 answerQuestion.textContent = question;
-                answerBody.textContent = data.answer;
+                answerBody.innerHTML = renderMarkdown(data.answer);
                 coachAnswer.hidden = false;
                 coachAnswer.scrollIntoView({block: "nearest"});
             } catch (error) {
