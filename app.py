@@ -57,8 +57,8 @@ def init_db():
 # shared helper so the plan-generation and question-answering code
 # don't have to repeat the request logic.
 def request_completion(messages):
-    # Fail early with a clear message if the key is missing, instead of
-    # letting the request fail further down.
+    # I check for the key up front myself so a missing key gives a clear
+    # message, instead of letting the request fail further down.
     api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if not api_key:
         return None, "The OpenRouter API key is not configured"
@@ -142,7 +142,8 @@ def request_explanation(topic_row, question):
             "content": (
                 "You are a study coach. Answer the student's question about the "
                 "selected topic, stay relevant to the supplied course material and "
-                "explain the answer clearly."
+                "explain the answer clearly. Format the answer in Markdown, using "
+                "headings, lists and emphasis where they help."
             ),
         },
         {
