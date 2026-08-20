@@ -48,14 +48,19 @@ def request_completion(messages):
     if not api_key:
         return None, "The OpenRouter API key is not configured"
 
-    payload = {"model": MODEL, "messages": messages, "temperature": 0.2}
+    payload = {
+        "model": MODEL,
+        "messages": messages,
+        "temperature": 0.2,
+        "reasoning": {"effort": "high"},
+    }
 
     try:
         response = requests.post(
             OPENROUTER_URL,
             headers={"Authorization": f"Bearer {api_key}"},
             json=payload,
-            timeout=30,
+            timeout=60,
         )
         if not response.ok:
             raise ValueError
@@ -73,8 +78,12 @@ def request_topic_plan(course_name, syllabus_text):
             "role": "system",
             "content": (
                 "Create an ordered study plan from the supplied course material. "
-                "Return only a JSON array. Each item must contain a non-empty "
-                '"title" and a short non-empty "summary".'
+                "Return only a JSON array of 6 to 10 items. Each item needs a "
+                '"title" of at most six words with no colons, and a "summary" of '
+                "one plain sentence under 20 words that avoids case names, "
+                "citations and lists. Write each summary as a direct description "
+                "of the topic, never starting with wording such as \"students "
+                'learn" or "this topic covers".'
             ),
         },
         {
