@@ -5,214 +5,858 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Study Coach</title>
     <style>
+        :root {
+            --bg: #f2f4f7;
+            --surface: #ffffff;
+            --surface-sunken: #f7f8fa;
+            --border: #e2e5ea;
+            --text: #1b1f24;
+            --muted: #5f6773;
+            --accent: #4f46e5;
+            --accent-dark: #4338ca;
+            --accent-soft: #eef0fe;
+            --done: #15803d;
+            --done-soft: #e9f5ec;
+            --danger: #b00020;
+            --danger-soft: #fdecef;
+            --radius: 12px;
+            --shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.08);
+        }
+
         * {
             box-sizing: border-box;
         }
 
+        /* Class-level display values would otherwise beat the hidden attribute. */
+        [hidden] {
+            display: none !important;
+        }
+
+        html {
+            scroll-padding-top: 120px;
+        }
+
         body {
             margin: 0;
-            background: #f5f5f5;
-            color: #222;
-            font-family: system-ui, sans-serif;
-        }
-
-        main {
-            max-width: 720px;
-            margin: 0 auto;
-            padding: 48px 20px;
-        }
-
-        h1 {
-            margin: 0 0 8px;
-        }
-
-        p {
+            background: var(--bg);
+            color: var(--text);
+            font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
             line-height: 1.5;
         }
 
-        section {
-            margin-top: 24px;
-            padding: 24px;
-            background: white;
-            border: 1px solid #ddd;
+        /* ---------- header and tab bar ---------- */
+
+        .app-header {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
         }
 
-        section h2 {
-            margin-top: 0;
+        .header-inner,
+        .tab-list,
+        main {
+            max-width: 820px;
+            margin: 0 auto;
+            padding-left: 20px;
+            padding-right: 20px;
         }
 
-        form {
-            display: grid;
-            gap: 12px;
-        }
-
-        input,
-        select,
-        textarea,
-        button {
-            width: 100%;
-            padding: 10px;
-            font: inherit;
-        }
-
-        input,
-        select,
-        textarea {
-            border: 1px solid #aaa;
-        }
-
-        textarea {
-            resize: vertical;
-        }
-
-        .topic-checkbox {
-            width: auto;
-            margin: 0 8px 0 0;
-            padding: 0;
-        }
-
-        button {
-            color: white;
-            background: #222;
-            border: 1px solid #222;
-            cursor: pointer;
-        }
-
-        button:disabled {
-            cursor: wait;
-            opacity: 0.6;
-        }
-
-        .error {
-            margin-bottom: 0;
-            color: #b00020;
-        }
-
-        #topic-list {
-            padding-left: 24px;
-        }
-
-        #topic-list li {
-            padding: 8px 0;
-        }
-
-        .topic-title {
+        .header-inner {
             display: flex;
-            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+            align-items: baseline;
+            justify-content: space-between;
+            padding-top: 20px;
+            padding-bottom: 12px;
+        }
+
+        .brand h1 {
+            margin: 0;
+            font-size: 22px;
+            letter-spacing: -0.01em;
+        }
+
+        .brand p {
+            margin: 2px 0 0;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .course-badge {
+            padding: 5px 12px;
+            border-radius: 999px;
+            background: var(--accent-soft);
+            color: var(--accent-dark);
+            font-size: 13px;
             font-weight: 600;
         }
 
-        #topic-list p {
-            margin: 4px 0 0;
+        .tab-list {
+            display: flex;
+            gap: 4px;
         }
 
-        #coach-answer {
-            margin-bottom: 0;
-            padding: 12px;
-            border: 1px solid #ddd;
+        .tab {
+            padding: 10px 14px;
+            border: 0;
+            border-bottom: 2px solid transparent;
+            background: none;
+            color: var(--muted);
+            font: inherit;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .tab:hover {
+            color: var(--text);
+        }
+
+        .tab[aria-selected="true"] {
+            border-bottom-color: var(--accent);
+            color: var(--accent-dark);
+            font-weight: 600;
+        }
+
+        .tab .tab-count {
+            margin-left: 6px;
+            padding: 1px 7px;
+            border-radius: 999px;
+            background: var(--surface-sunken);
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .tab[aria-selected="true"] .tab-count {
+            background: var(--accent-soft);
+            color: var(--accent-dark);
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        /* ---------- layout ---------- */
+
+        main {
+            padding-top: 28px;
+            padding-bottom: 64px;
+        }
+
+        .card {
+            margin-bottom: 20px;
+            padding: 22px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        .card > h2 {
+            margin: 0 0 4px;
+            font-size: 17px;
+        }
+
+        .card > h2 + .hint {
+            margin-top: 0;
+        }
+
+        .hint {
+            margin: 0 0 18px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        /* ---------- forms and buttons ---------- */
+
+        form {
+            display: grid;
+            gap: 6px;
+        }
+
+        label {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        input[type="text"],
+        input[type="file"],
+        select,
+        textarea {
+            width: 100%;
+            margin-bottom: 12px;
+            padding: 10px 12px;
+            border: 1px solid #cdd2d9;
+            border-radius: 8px;
+            background: var(--surface);
+            color: inherit;
+            font: inherit;
+        }
+
+        input[type="text"]:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--accent);
+            outline: none;
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+
+        textarea {
+            min-height: 96px;
+            resize: vertical;
+        }
+
+        input[type="file"]::file-selector-button {
+            margin-right: 12px;
+            padding: 7px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface-sunken);
+            color: var(--text);
+            font: inherit;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .btn {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 18px;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent-dark);
+        }
+
+        .btn-secondary {
+            background: var(--surface);
+            border-color: #cdd2d9;
+            color: var(--text);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--surface-sunken);
+        }
+
+        .btn:disabled {
+            cursor: progress;
+            opacity: 0.65;
+        }
+
+        .btn-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .spinner {
+            width: 15px;
+            height: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.45);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ---------- error banner ---------- */
+
+        .error {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 12px 14px;
+            border: 1px solid #f3c2cb;
+            border-radius: 10px;
+            background: var(--danger-soft);
+            color: var(--danger);
+            font-size: 14px;
+        }
+
+        .error button {
+            padding: 0 4px;
+            border: 0;
+            background: none;
+            color: inherit;
+            font: inherit;
+            font-size: 18px;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        /* ---------- progress ---------- */
+
+        .progress-card {
+            display: grid;
+            gap: 14px;
+        }
+
+        .progress-top {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px 16px;
+            align-items: baseline;
+            justify-content: space-between;
+        }
+
+        .progress-percentage {
+            font-size: 34px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            line-height: 1;
+        }
+
+        .progress-count {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .progress-track {
+            height: 10px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: var(--surface-sunken);
+            box-shadow: inset 0 0 0 1px var(--border);
+        }
+
+        .progress-fill {
+            width: 0;
+            height: 100%;
+            border-radius: 999px;
+            background: var(--accent);
+            transition: width 0.35s ease, background-color 0.35s ease;
+        }
+
+        .is-complete .progress-fill {
+            background: var(--done);
+        }
+
+        .is-complete .progress-percentage {
+            color: var(--done);
+        }
+
+        /* ---------- topic list ---------- */
+
+        #topic-list {
+            display: grid;
+            gap: 12px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .topic {
+            display: flex;
+            gap: 14px;
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-left: 3px solid #cdd2d9;
+            border-radius: var(--radius);
+            background: var(--surface);
+            box-shadow: var(--shadow);
+            transition: border-color 0.2s ease, background-color 0.2s ease;
+        }
+
+        .topic.is-done {
+            border-left-color: var(--done);
+            background: var(--done-soft);
+        }
+
+        .topic-checkbox {
+            width: 20px;
+            height: 20px;
+            flex: none;
+            margin-top: 2px;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        .topic.is-done .topic-checkbox {
+            accent-color: var(--done);
+        }
+
+        .topic-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .topic-head {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px 10px;
+            align-items: baseline;
+        }
+
+        .topic-index {
+            color: var(--muted);
+            font-size: 13px;
+            font-variant-numeric: tabular-nums;
+            font-weight: 700;
+        }
+
+        .topic-title {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .topic.is-done .topic-title {
+            color: var(--muted);
+            text-decoration: line-through;
+        }
+
+        .topic-summary {
+            margin: 6px 0 0;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .topic-ask {
+            margin-top: 10px;
+            padding: 0;
+            border: 0;
+            background: none;
+            color: var(--accent-dark);
+            font: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .topic-ask:hover {
+            text-decoration: underline;
+        }
+
+        /* ---------- empty states and coach answer ---------- */
+
+        .empty {
+            padding: 44px 24px;
+            border: 1px dashed #cdd2d9;
+            border-radius: var(--radius);
+            background: var(--surface);
+            text-align: center;
+        }
+
+        .empty h2 {
+            margin: 0 0 6px;
+            font-size: 17px;
+        }
+
+        .empty p {
+            margin: 0 0 18px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .answer-topic {
+            margin: 0 0 4px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .answer-question {
+            margin: 0 0 14px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .answer-body {
+            margin: 0;
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--surface-sunken);
             white-space: pre-wrap;
+        }
+
+        @media (max-width: 560px) {
+            .tab-list {
+                overflow-x: auto;
+            }
+
+            .tab {
+                white-space: nowrap;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
         }
     </style>
 </head>
 <body>
+    <header class="app-header">
+        <div class="header-inner">
+            <div class="brand">
+                <h1>Study Coach</h1>
+                <p>Turn your course material into an ordered study plan.</p>
+            </div>
+            <span id="course-badge" class="course-badge" hidden></span>
+        </div>
+
+        <div class="tab-list" role="tablist" aria-label="Sections">
+            <button
+                class="tab"
+                id="tab-plan"
+                role="tab"
+                type="button"
+                aria-selected="true"
+                aria-controls="panel-plan"
+            >
+                Study plan<span class="tab-count" id="plan-count" hidden></span>
+            </button>
+            <button
+                class="tab"
+                id="tab-coach"
+                role="tab"
+                type="button"
+                aria-selected="false"
+                tabindex="-1"
+                aria-controls="panel-coach"
+            >
+                Topic coach
+            </button>
+            <button
+                class="tab"
+                id="tab-setup"
+                role="tab"
+                type="button"
+                aria-selected="false"
+                tabindex="-1"
+                aria-controls="panel-setup"
+            >
+                Course setup
+            </button>
+        </div>
+    </header>
+
     <main>
-        <h1>Study Coach</h1>
-        <p>Turn your course material into an ordered study plan.</p>
-        <p id="error" class="error" role="alert" hidden></p>
+        <div id="error" class="error" role="alert" hidden>
+            <span id="error-text"></span>
+            <button type="button" id="error-dismiss" aria-label="Dismiss error">&times;</button>
+        </div>
 
-        <section>
-            <h2>Course setup</h2>
-            <form id="course-form">
-                <label for="course-name">Course name</label>
-                <input id="course-name" name="course_name" required>
-
-                <label for="syllabus-file">Syllabus file</label>
-                <input
-                    id="syllabus-file"
-                    name="syllabus_file"
-                    type="file"
-                    accept=".txt,text/plain"
-                    required
+        <!-- Study plan -->
+        <section
+            class="panel"
+            id="panel-plan"
+            role="tabpanel"
+            aria-labelledby="tab-plan"
+            tabindex="0"
+        >
+            <div class="card progress-card" id="progress-card" hidden>
+                <div class="progress-top">
+                    <div>
+                        <div class="progress-percentage" id="progress-percentage">0%</div>
+                        <div class="progress-count" id="progress-count"></div>
+                    </div>
+                    <div class="progress-count" id="progress-remaining"></div>
+                </div>
+                <div
+                    class="progress-track"
+                    role="progressbar"
+                    id="progress-track"
+                    aria-label="Study plan progress"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    aria-valuenow="0"
                 >
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+            </div>
 
-                <button type="submit">Generate study plan</button>
-            </form>
-        </section>
-
-        <section id="study-plan" hidden>
-            <h2 id="course-title">Study plan</h2>
-            <p id="progress" aria-live="polite"></p>
             <ol id="topic-list"></ol>
+
+            <div class="empty" id="plan-empty">
+                <h2>No study plan yet</h2>
+                <p>Add a course and its syllabus to generate an ordered set of topics.</p>
+                <button class="btn btn-primary" type="button" data-open-tab="setup">
+                    Set up a course
+                </button>
+            </div>
         </section>
 
-        <section id="topic-coach" hidden>
-            <h2>Topic coach</h2>
-            <form id="coach-form">
-                <label for="coach-topic">Topic</label>
-                <select id="coach-topic" required></select>
+        <!-- Topic coach -->
+        <section
+            class="panel"
+            id="panel-coach"
+            role="tabpanel"
+            aria-labelledby="tab-coach"
+            tabindex="0"
+            hidden
+        >
+            <div class="card" id="coach-card" hidden>
+                <h2>Ask about a topic</h2>
+                <p class="hint">Answers are grounded in the course material you uploaded.</p>
 
-                <label for="coach-question">Question</label>
-                <textarea id="coach-question" rows="3" required></textarea>
+                <form id="coach-form">
+                    <label for="coach-topic">Topic</label>
+                    <select id="coach-topic" required></select>
 
-                <button type="submit">Ask</button>
-            </form>
-            <p id="coach-answer" aria-live="polite" hidden></p>
+                    <label for="coach-question">Question</label>
+                    <textarea
+                        id="coach-question"
+                        placeholder="e.g. What is the difference between unfair dismissal and unlawful termination?"
+                        required
+                    ></textarea>
+
+                    <div class="btn-row">
+                        <button class="btn btn-primary" type="submit" id="coach-button">Ask</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card" id="coach-answer" hidden>
+                <p class="answer-topic" id="answer-topic"></p>
+                <p class="answer-question" id="answer-question"></p>
+                <p class="answer-body" id="answer-body"></p>
+            </div>
+
+            <div class="empty" id="coach-empty">
+                <h2>The coach needs a course first</h2>
+                <p>Once a study plan exists you can ask questions about any topic in it.</p>
+                <button class="btn btn-primary" type="button" data-open-tab="setup">
+                    Set up a course
+                </button>
+            </div>
+        </section>
+
+        <!-- Course setup -->
+        <section
+            class="panel"
+            id="panel-setup"
+            role="tabpanel"
+            aria-labelledby="tab-setup"
+            tabindex="0"
+            hidden
+        >
+            <div class="card">
+                <h2>Course setup</h2>
+                <p class="hint" id="setup-hint">
+                    Upload a plain text (.txt) syllabus and the coach will build an ordered
+                    study plan from it. This can take up to a minute.
+                </p>
+
+                <form id="course-form">
+                    <label for="course-name">Course name</label>
+                    <input id="course-name" name="course_name" type="text" required>
+
+                    <label for="syllabus-file">Syllabus file</label>
+                    <input
+                        id="syllabus-file"
+                        name="syllabus_file"
+                        type="file"
+                        accept=".txt,text/plain"
+                        required
+                    >
+
+                    <div class="btn-row">
+                        <button class="btn btn-primary" type="submit" id="setup-button">
+                            Generate study plan
+                        </button>
+                    </div>
+                </form>
+            </div>
         </section>
     </main>
 
     <script>
-        const form = document.querySelector("#course-form");
-        const errorMessage = document.querySelector("#error");
-        const studyPlan = document.querySelector("#study-plan");
-        const courseTitle = document.querySelector("#course-title");
-        const progressText = document.querySelector("#progress");
+        const errorBanner = document.querySelector("#error");
+        const errorText = document.querySelector("#error-text");
+        const courseBadge = document.querySelector("#course-badge");
+        const planCount = document.querySelector("#plan-count");
+
+        const progressCard = document.querySelector("#progress-card");
+        const progressPercentage = document.querySelector("#progress-percentage");
+        const progressCount = document.querySelector("#progress-count");
+        const progressRemaining = document.querySelector("#progress-remaining");
+        const progressTrack = document.querySelector("#progress-track");
+        const progressFill = document.querySelector("#progress-fill");
+
         const topicList = document.querySelector("#topic-list");
-        const submitButton = form.querySelector("button");
-        const topicCoach = document.querySelector("#topic-coach");
+        const planEmpty = document.querySelector("#plan-empty");
+
+        const coachCard = document.querySelector("#coach-card");
+        const coachEmpty = document.querySelector("#coach-empty");
         const coachForm = document.querySelector("#coach-form");
         const coachTopic = document.querySelector("#coach-topic");
         const coachQuestion = document.querySelector("#coach-question");
+        const coachButton = document.querySelector("#coach-button");
         const coachAnswer = document.querySelector("#coach-answer");
-        const coachButton = coachForm.querySelector("button");
+        const answerTopic = document.querySelector("#answer-topic");
+        const answerQuestion = document.querySelector("#answer-question");
+        const answerBody = document.querySelector("#answer-body");
+
+        const courseForm = document.querySelector("#course-form");
+        const courseName = document.querySelector("#course-name");
+        const setupButton = document.querySelector("#setup-button");
+        const setupHint = document.querySelector("#setup-hint");
+
+        const tabs = [...document.querySelectorAll('[role="tab"]')];
+
+        let courseLoaded = false;
+
+        /* ---------- tabs ---------- */
+
+        function openTab(name) {
+            for (const tab of tabs) {
+                const selected = tab.id === `tab-${name}`;
+                tab.setAttribute("aria-selected", String(selected));
+                tab.tabIndex = selected ? 0 : -1;
+                document.querySelector(`#${tab.getAttribute("aria-controls")}`).hidden =
+                    !selected;
+            }
+        }
+
+        for (const tab of tabs) {
+            tab.addEventListener("click", () => openTab(tab.id.replace("tab-", "")));
+        }
+
+        // Arrow key navigation between tabs, as expected of a tab list.
+        document.querySelector('[role="tablist"]').addEventListener("keydown", (event) => {
+            const steps = {ArrowRight: 1, ArrowLeft: -1, Home: -tabs.length, End: tabs.length};
+            const step = steps[event.key];
+            if (step === undefined) {
+                return;
+            }
+
+            event.preventDefault();
+            const current = tabs.findIndex((tab) => tab.tabIndex === 0);
+            const next = Math.min(Math.max(current + step, 0), tabs.length - 1);
+            tabs[next].focus();
+            openTab(tabs[next].id.replace("tab-", ""));
+        });
+
+        for (const button of document.querySelectorAll("[data-open-tab]")) {
+            button.addEventListener("click", () => openTab(button.dataset.openTab));
+        }
+
+        /* ---------- errors and busy buttons ---------- */
 
         function showError(message) {
-            errorMessage.textContent = message;
-            errorMessage.hidden = false;
-            errorMessage.scrollIntoView();
+            errorText.textContent = message;
+            errorBanner.hidden = false;
+            errorBanner.scrollIntoView({block: "nearest"});
         }
 
-        function updateProgress(progress) {
-            progressText.textContent =
-                `${progress.completed} of ${progress.total} topics complete ` +
-                `(${progress.percentage}%)`;
+        function clearError() {
+            errorBanner.hidden = true;
         }
 
-        function renderState(data) {
-            courseTitle.textContent = `${data.course.name} study plan`;
-            updateProgress(data.progress);
-            topicList.replaceChildren();
-            coachTopic.replaceChildren();
+        document.querySelector("#error-dismiss").addEventListener("click", clearError);
 
-            for (const topic of data.topics) {
-                const item = document.createElement("li");
-                const title = document.createElement("label");
-                const checkbox = document.createElement("input");
-                const titleText = document.createElement("span");
-                const summary = document.createElement("p");
+        function setBusy(button, label) {
+            button.disabled = true;
+            button.dataset.label = button.textContent.trim();
+            button.replaceChildren(
+                Object.assign(document.createElement("span"), {className: "spinner"}),
+                document.createTextNode(label)
+            );
+        }
 
-                title.className = "topic-title";
-                checkbox.className = "topic-checkbox";
-                checkbox.type = "checkbox";
-                checkbox.checked = topic.completed;
-                titleText.textContent = topic.title;
-                summary.textContent = topic.summary;
+        function clearBusy(button) {
+            button.disabled = false;
+            button.textContent = button.dataset.label;
+        }
 
-                checkbox.addEventListener("change", async () => {
-                    const completed = checkbox.checked;
-                    checkbox.disabled = true;
-                    errorMessage.hidden = true;
+        /* ---------- progress ---------- */
 
-                    try {
+        function renderProgress(progress) {
+            const complete = progress.total > 0 && progress.completed === progress.total;
+            const remaining = progress.total - progress.completed;
+
+            progressPercentage.textContent = `${progress.percentage}%`;
+            progressCount.textContent =
+                `${progress.completed} of ${progress.total} topics complete`;
+            progressRemaining.textContent = complete
+                ? "Plan complete"
+                : `${remaining} topic${remaining === 1 ? "" : "s"} to go`;
+            progressFill.style.width = `${progress.percentage}%`;
+            progressTrack.setAttribute("aria-valuenow", progress.percentage);
+            progressCard.classList.toggle("is-complete", complete);
+            courseBadge.textContent =
+                `${progress.completed}/${progress.total} complete`;
+        }
+
+        /* ---------- rendering ---------- */
+
+        function createTopic(topic, index) {
+            const item = document.createElement("li");
+            const checkbox = document.createElement("input");
+            const body = document.createElement("div");
+            const head = document.createElement("div");
+            const number = document.createElement("span");
+            const title = document.createElement("label");
+            const summary = document.createElement("p");
+            const ask = document.createElement("button");
+
+            item.className = topic.completed ? "topic is-done" : "topic";
+            checkbox.className = "topic-checkbox";
+            checkbox.type = "checkbox";
+            checkbox.checked = topic.completed;
+            checkbox.id = `topic-${topic.id}`;
+            checkbox.setAttribute("aria-describedby", `summary-${topic.id}`);
+
+            body.className = "topic-body";
+            head.className = "topic-head";
+            number.className = "topic-index";
+            number.textContent = String(index + 1).padStart(2, "0");
+            title.className = "topic-title";
+            title.htmlFor = checkbox.id;
+            title.textContent = topic.title;
+            summary.className = "topic-summary";
+            summary.id = `summary-${topic.id}`;
+            summary.textContent = topic.summary;
+
+            ask.className = "topic-ask";
+            ask.type = "button";
+            ask.textContent = "Ask the coach about this →";
+            ask.addEventListener("click", () => {
+                openTab("coach");
+                coachTopic.value = String(topic.id);
+                coachQuestion.focus();
+            });
+
+            checkbox.addEventListener("change", async () => {
+                const completed = checkbox.checked;
+                checkbox.disabled = true;
+                item.classList.toggle("is-done", completed);
+                clearError();
+
+                try {
                     const response = await fetch(`/api/topics/${topic.id}`, {
                         method: "PATCH",
                         headers: {"Content-Type": "application/json"},
@@ -220,33 +864,66 @@
                     });
                     const result = await response.json();
 
-                    // I added this fallback so failures without a proper
-                    // error message still show something readable.
+                    // Fallback so failures without a proper error message still
+                    // show something readable.
                     if (!response.ok) {
                         throw new Error(result.error || "Progress could not be saved");
                     }
 
-                        updateProgress(result.progress);
-                    } catch (error) {
-                        checkbox.checked = !completed;
-                        showError(error.message);
-                    } finally {
-                        checkbox.disabled = false;
-                    }
-                });
+                    renderProgress(result.progress);
+                } catch (error) {
+                    checkbox.checked = !completed;
+                    item.classList.toggle("is-done", !completed);
+                    showError(error.message);
+                } finally {
+                    checkbox.disabled = false;
+                }
+            });
 
-                title.append(checkbox, titleText);
-                item.append(title, summary);
-                topicList.append(item);
+            head.append(number, title);
+            body.append(head, summary, ask);
+            item.append(checkbox, body);
+            return item;
+        }
+
+        function renderState(data) {
+            courseLoaded = Boolean(data.course);
+            topicList.replaceChildren();
+            coachTopic.replaceChildren();
+
+            if (!courseLoaded) {
+                planEmpty.hidden = false;
+                coachEmpty.hidden = false;
+                progressCard.hidden = true;
+                coachCard.hidden = true;
+                courseBadge.hidden = true;
+                planCount.hidden = true;
+                return;
+            }
+
+            data.topics.forEach((topic, index) => {
+                topicList.append(createTopic(topic, index));
 
                 const option = document.createElement("option");
                 option.value = topic.id;
-                option.textContent = topic.title;
+                option.textContent = `${index + 1}. ${topic.title}`;
+                option.dataset.title = topic.title;
                 coachTopic.append(option);
-            }
+            });
 
-            studyPlan.hidden = false;
-            topicCoach.hidden = false;
+            renderProgress(data.progress);
+            planCount.textContent = data.progress.total;
+            planCount.hidden = false;
+            courseBadge.hidden = false;
+            courseBadge.title = data.course.name;
+            setupHint.textContent =
+                `"${data.course.name}" is loaded. Generating a new plan replaces it ` +
+                "along with its saved progress.";
+
+            planEmpty.hidden = true;
+            coachEmpty.hidden = true;
+            progressCard.hidden = false;
+            coachCard.hidden = false;
         }
 
         async function loadState() {
@@ -258,24 +935,34 @@
                     throw new Error;
                 }
 
-                if (data.course) {
-                    renderState(data);
-                }
+                renderState(data);
+                openTab(data.course ? "plan" : "setup");
             } catch {
                 showError("The saved course could not be loaded");
             }
         }
 
-        form.addEventListener("submit", async (event) => {
+        /* ---------- forms ---------- */
+
+        courseForm.addEventListener("submit", async (event) => {
             event.preventDefault();
-            errorMessage.hidden = true;
-            submitButton.disabled = true;
-            submitButton.textContent = "Generating...";
+
+            if (courseLoaded) {
+                const confirmed = confirm(
+                    "This replaces the current study plan and its progress. Continue?"
+                );
+                if (!confirmed) {
+                    return;
+                }
+            }
+
+            clearError();
+            setBusy(setupButton, "Generating plan...");
 
             try {
                 const response = await fetch("/api/setup", {
                     method: "POST",
-                    body: new FormData(form)
+                    body: new FormData(courseForm)
                 });
                 const data = await response.json();
 
@@ -283,21 +970,26 @@
                     throw new Error(data.error || "The study plan could not be generated");
                 }
 
+                coachAnswer.hidden = true;
                 renderState(data);
+                courseForm.reset();
+                courseName.value = data.course.name;
+                openTab("plan");
             } catch (error) {
                 showError(error.message);
             } finally {
-                submitButton.disabled = false;
-                submitButton.textContent = "Generate study plan";
+                clearBusy(setupButton);
             }
         });
 
         coachForm.addEventListener("submit", async (event) => {
             event.preventDefault();
-            errorMessage.hidden = true;
+            clearError();
             coachAnswer.hidden = true;
-            coachButton.disabled = true;
-            coachButton.textContent = "Asking...";
+            setBusy(coachButton, "Asking...");
+
+            const question = coachQuestion.value.trim();
+            const topicTitle = coachTopic.selectedOptions[0].dataset.title;
 
             try {
                 const response = await fetch("/api/chat", {
@@ -305,7 +997,7 @@
                     headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({
                         topic_id: Number(coachTopic.value),
-                        question: coachQuestion.value
+                        question
                     })
                 });
                 const data = await response.json();
@@ -314,13 +1006,15 @@
                     throw new Error(data.error || "The explanation could not be generated");
                 }
 
-                coachAnswer.textContent = data.answer;
+                answerTopic.textContent = topicTitle;
+                answerQuestion.textContent = question;
+                answerBody.textContent = data.answer;
                 coachAnswer.hidden = false;
+                coachAnswer.scrollIntoView({block: "nearest"});
             } catch (error) {
                 showError(error.message);
             } finally {
-                coachButton.disabled = false;
-                coachButton.textContent = "Ask";
+                clearBusy(coachButton);
             }
         });
 

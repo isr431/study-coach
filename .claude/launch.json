@@ -1,0 +1,20 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "study-coach",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "flask",
+        "--app",
+        "app",
+        "run",
+        "--debug",
+        "--port",
+        "5001"
+      ],
+      "port": 5001
+    }
+  ]
+}
