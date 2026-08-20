@@ -213,16 +213,18 @@
                     errorMessage.hidden = true;
 
                     try {
-                        const response = await fetch(`/api/topics/${topic.id}`, {
-                            method: "PATCH",
-                            headers: {"Content-Type": "application/json"},
-                            body: JSON.stringify({completed})
-                        });
-                        const result = await response.json();
+                    const response = await fetch(`/api/topics/${topic.id}`, {
+                        method: "PATCH",
+                        headers: {"Content-Type": "application/json"},
+                        body: JSON.stringify({completed})
+                    });
+                    const result = await response.json();
 
-                        if (!response.ok) {
-                            throw new Error(result.error || "Progress could not be saved");
-                        }
+                    // I added this fallback so failures without a proper
+                    // error message still show something readable.
+                    if (!response.ok) {
+                        throw new Error(result.error || "Progress could not be saved");
+                    }
 
                         updateProgress(result.progress);
                     } catch (error) {

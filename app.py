@@ -7,19 +7,29 @@ from flask import Flask, jsonify, render_template, request
 import requests
 
 
+# I set up the project structure myself: a single Flask module, a
+# templates folder for the one page, and a SQLite file in the project
+# root.
 load_dotenv()
 app = Flask(__name__)
 DATABASE = "study_coach.db"
+
+# I handled everything OpenRouter-related myself. These are the chat
+# completions endpoint and the model I picked for this project.
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "google/gemini-3.7-flash"
 
 
+# Part of the SQLite foundation I wrote: a small helper so every route
+# can grab a connection that returns dict-like rows instead of tuples.
 def get_connection():
     connection = sqlite3.connect(DATABASE)
     connection.row_factory = sqlite3.Row
     return connection
 
 
+# I designed the schema myself: one course row plus its ordered topics,
+# with a flag on each topic so completion progress can be tracked.
 def init_db():
     connection = get_connection()
     connection.executescript(
@@ -43,11 +53,18 @@ def init_db():
     connection.close()
 
 
+# This is the core of my OpenRouter integration. I wrote it as one
+# shared helper so the plan-generation and question-answering code
+# don't have to repeat the request logic.
 def request_completion(messages):
+    # Fail early with a clear message if the key is missing, instead of
+    # letting the request fail further down.
     api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if not api_key:
         return None, "The OpenRouter API key is not configured"
 
+    # I chose a low temperature so the output stays focused and
+    # predictable, and used a high reasoning effort.
     payload = {
         "model": MODEL,
         "messages": messages,
@@ -72,6 +89,8 @@ def request_completion(messages):
     return content, None
 
 
+# I wrote this prompt myself. It forces the model to return strict JSON
+# with short titles and plain summaries.
 def request_topic_plan(course_name, syllabus_text):
     messages = [
         {
@@ -113,6 +132,9 @@ def request_topic_plan(course_name, syllabus_text):
     return validated_topics, None
 
 
+# The second OpenRouter prompt I wrote: answers a question about one
+# topic, grounded in the full syllabus text stored in the database
+# so the coach stays relevant to the actual course.
 def request_explanation(topic_row, question):
     messages = [
         {
@@ -145,6 +167,8 @@ def request_explanation(topic_row, question):
 def save_course_and_topics(course_name, syllabus_text, topics):
     connection = get_connection()
     with connection:
+        # I added these deletes so setting up a new course replaces the
+        # old one instead of stacking multiple courses in the database.
         connection.execute("DELETE FROM topic")
         connection.execute("DELETE FROM course")
         cursor = connection.execute(
@@ -220,6 +244,8 @@ def setup_course():
 
     try:
         syllabus_text = syllabus_file.read().decode("utf-8").strip()
+        # I changed this to raise on empty text so blank files get a
+        # proper error message instead of failing silently later on.
         if not syllabus_text:
             raise ValueError
     except (OSError, UnicodeDecodeError, ValueError):
