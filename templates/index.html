@@ -40,6 +40,55 @@
         section h2 {
             margin-top: 0;
         }
+
+        form {
+            display: grid;
+            gap: 12px;
+        }
+
+        input,
+        button {
+            width: 100%;
+            padding: 10px;
+            font: inherit;
+        }
+
+        input {
+            border: 1px solid #aaa;
+        }
+
+        button {
+            color: white;
+            background: #222;
+            border: 1px solid #222;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            cursor: wait;
+            opacity: 0.6;
+        }
+
+        .error {
+            margin-bottom: 0;
+            color: #b00020;
+        }
+
+        #topic-list {
+            padding-left: 24px;
+        }
+
+        #topic-list li {
+            padding: 8px 0;
+        }
+
+        #topic-list h3 {
+            margin: 0;
+        }
+
+        #topic-list p {
+            margin: 4px 0 0;
+        }
     </style>
 </head>
 <body>
@@ -49,8 +98,78 @@
 
         <section>
             <h2>Course setup</h2>
-            <p>Upload your syllabus to begin building your study journey.</p>
+            <form id="course-form">
+                <label for="course-name">Course name</label>
+                <input id="course-name" name="course_name" required>
+
+                <label for="syllabus-file">Syllabus file</label>
+                <input
+                    id="syllabus-file"
+                    name="syllabus_file"
+                    type="file"
+                    accept=".txt,text/plain"
+                    required
+                >
+
+                <button type="submit">Generate study plan</button>
+            </form>
+            <p id="setup-error" class="error" role="alert" hidden></p>
+        </section>
+
+        <section id="study-plan" hidden>
+            <h2 id="course-title">Study plan</h2>
+            <ol id="topic-list"></ol>
         </section>
     </main>
+
+    <script>
+        const form = document.querySelector("#course-form");
+        const errorMessage = document.querySelector("#setup-error");
+        const studyPlan = document.querySelector("#study-plan");
+        const courseTitle = document.querySelector("#course-title");
+        const topicList = document.querySelector("#topic-list");
+        const submitButton = form.querySelector("button");
+
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            errorMessage.hidden = true;
+            submitButton.disabled = true;
+            submitButton.textContent = "Generating...";
+
+            try {
+                const response = await fetch("/api/setup", {
+                    method: "POST",
+                    body: new FormData(form)
+                });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "The study plan could not be generated");
+                }
+
+                courseTitle.textContent = `${data.course.name} study plan`;
+                topicList.replaceChildren();
+
+                for (const topic of data.topics) {
+                    const item = document.createElement("li");
+                    const title = document.createElement("h3");
+                    const summary = document.createElement("p");
+
+                    title.textContent = topic.title;
+                    summary.textContent = topic.summary;
+                    item.append(title, summary);
+                    topicList.append(item);
+                }
+
+                studyPlan.hidden = false;
+            } catch (error) {
+                errorMessage.textContent = error.message;
+                errorMessage.hidden = false;
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = "Generate study plan";
+            }
+        });
+    </script>
 </body>
 </html>
