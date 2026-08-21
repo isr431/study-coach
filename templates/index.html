@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Study Coach</title>
     <style>
+         /* I used AI for the styling and theme of this page. The design
+            tokens, the colour palette and the overall look were all put
+            together with AI rather than designed by hand. */
 
         :root {
             --bg: #fafafa;
@@ -27,6 +30,7 @@
             --radius: 14px;
         }
 
+         /* The dark mode colours were done with AI too. */
         @media (prefers-color-scheme: dark) {
             :root {
                 --bg: #0e0f12;
@@ -928,6 +932,10 @@
     </main>
 
     <script>
+         // I used AI to help write the JavaScript on this page, since
+         // I'm not that competent in JS. The Flask backend is my own
+         // work.
+
         const errorBanner = document.querySelector("#error");
         const errorText = document.querySelector("#error-text");
         const courseBadge = document.querySelector("#course-badge");
@@ -965,6 +973,8 @@
         let courseLoaded = false;
         let planComplete = false;
 
+         // I had AI help with the tab switching, including the arrow key
+         // navigation below.
         function openTab(name) {
             for (const tab of tabs) {
                 const selected = tab.id === `tab-${name}`;
@@ -1004,6 +1014,8 @@
             button.addEventListener("click", () => openTab(button.dataset.openTab));
         }
 
+        // I used AI for this one. It escapes HTML characters so the AI
+        // answer can be inserted safely without breaking the page.
         function escapeHtml(text) {
             const replacements = {
                 "&": "&amp;",
@@ -1015,6 +1027,8 @@
             return text.replace(/[&<>"']/g, (character) => replacements[character]);
         }
 
+         // I used AI for this one too. It turns inline Markdown (bold,
+         // links, code) into HTML using regex.
         function renderInline(text) {
             return escapeHtml(text)
                 .replace(/`([^`]+)`/g, "<code>$1</code>")
@@ -1027,6 +1041,8 @@
                 .replace(/(^|[^_\w])_([^\s_][^_\n]*?|[^\s_])_/g, "$1<em>$2</em>");
         }
 
+         // AI wrote this Markdown renderer for me. It goes line by line
+         // and builds up the HTML for the coach's answers.
         function renderMarkdown(text) {
             const lines = text.replace(/\r\n/g, "\n").split("\n");
             const html = [];
@@ -1124,6 +1140,8 @@
 
         document.querySelector("#error-dismiss").addEventListener("click", clearError);
 
+         // AI wrote this bit. It swaps the button text for a spinner
+         // while something is loading, and clearBusy puts it back.
         function setBusy(button, label) {
             button.disabled = true;
             button.dataset.label = button.textContent.trim();
@@ -1138,6 +1156,8 @@
             button.textContent = button.dataset.label;
         }
 
+         // AI came up with this confetti effect that plays when the
+         // whole plan is finished.
         function celebrate() {
             if (reducedMotion.matches) {
                 return;
@@ -1169,6 +1189,8 @@
             setTimeout(() => layer.remove(), 2000);
         }
 
+         // AI wrote this part. It updates the progress bar and fires
+         // the confetti only the first time everything is complete.
         function renderProgress(progress) {
             const complete = progress.total > 0 && progress.completed === progress.total;
             const remaining = progress.total - progress.completed;
@@ -1192,6 +1214,9 @@
             planComplete = complete;
         }
 
+         // AI wrote this for me. It builds each topic item in the list,
+         // including the checkbox that saves progress and rolls back if
+         // the save fails.
         function createTopic(topic, index) {
             const item = document.createElement("li");
             const checkbox = document.createElement("input");
@@ -1267,6 +1292,8 @@
             return item;
         }
 
+         // AI wrote this one. It redraws the whole page from the data
+         // the server sends back.
         function renderState(data) {
             courseLoaded = Boolean(data.course);
             topicList.replaceChildren();
@@ -1307,6 +1334,8 @@
             coachCard.hidden = false;
         }
 
+         // AI wrote this as well. It fetches the saved course when the
+         // page first loads and shows the right tab.
         async function loadState() {
             try {
                 const response = await fetch("/api/state");
